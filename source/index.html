@@ -63,7 +63,7 @@ under the License.
       <div class="dark-box"></div>
       <div class="content">
         <% for(var i=0; i<includes.length; i++) { %>
-          <%- includes[i] %>
+          <%- parse_page(includes[i]) %>
         <% } %>
       </div>
       <div class="dark-box">

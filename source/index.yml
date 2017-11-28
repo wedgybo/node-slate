@@ -12,6 +12,8 @@ toc_footers:
 
 includes:
   - main
+  - home
+  - wrangler
   - _errors
 
 search: true

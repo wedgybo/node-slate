@@ -12,6 +12,7 @@ var rename = require("gulp-rename");
 var sass = require('gulp-sass');
 var uglify = require('gulp-uglify');
 var gutil = require('gulp-util');
+var awspublish = require('gulp-awspublish');
 
 var del = require('del');
 var highlight = require('highlight.js');
@@ -26,7 +27,7 @@ renderer.code = function (code, language) {
   var highlighted = language ? highlight.highlight(language, code).value
                              : highlight.highlightAuto(code).value;
 
-  return '<pre class="highlight ' + language + '"><code>' + highlighted + '</code></pre>';
+  return '<pre class="highlight ' + language + '"><code>' + highlighted.replace('{{auth_token}}', '<span class="auth-token"></span>') + '</code></pre>';
 };
 
 var readIndexYml = function() {
@@ -58,7 +59,11 @@ var getPageData = function() {
     },
     langs: (config.language_tabs || []).map(function(lang) {
       return typeof lang == 'string' ? lang : lang.keys.first;
-    })
+    }),
+    parse_page: function(page) {
+      console.log('Pagey page');
+      return page;
+    }
   };
 };
 
@@ -86,6 +91,7 @@ gulp.task('js', function() {
   var scripts = [
     './source/javascripts/app/_lang.js',
     './source/javascripts/app/_toc.js',
+    './source/javascripts/app/_token.js',
   ];
 
   if (config.search) {
@@ -146,4 +152,33 @@ gulp.task('serve', ['NO_COMPRESS', 'default'], function() {
   });
 
   gulp.src(__filename).pipe(open({uri: 'http://localhost:4567'}));
+});
+
+gulp.task('deploy', function () {
+
+    // create a new publisher using S3 options
+  // http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/S3.html#constructor-property
+  var publisher = awspublish.create({
+    region: 'eu-west-1',
+    params: {
+      Bucket: 'docs.mallzee.com'
+    }
+  }, {
+    cacheFileName: 'your-cache-location'
+  });
+
+  // define custom headers
+  var headers = {
+    'Cache-Control': 'max-age=315360000, no-transform, public'
+  };
+
+  // only directory bar will be synced
+  // files in folder /foo/bar and file baz.txt will not be removed from the bucket despite not being in your local folder
+  gulp.src('./build/**')
+    .pipe(rename(function (path) {
+        path.dirname = 'latest/wrangler/' + path.dirname;
+    }))
+    .pipe(publisher.publish())
+    .pipe(publisher.sync('latest/wrangler'))
+    .pipe(awspublish.reporter());
 });
